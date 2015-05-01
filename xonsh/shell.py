@@ -3,7 +3,6 @@ import os
 import sys
 import builtins
 import traceback
-from cmd import Cmd
 from warnings import warn
 from argparse import Namespace
 
@@ -14,6 +13,7 @@ from xonsh.execer import Execer
 from xonsh.tools import XonshError
 from xonsh.completer import Completer
 from xonsh.environ import xonshrc_context, multiline_prompt, format_prompt
+from xonsh.pyghooks import XonshLexer
 
 RL_COMPLETION_SUPPRESS_APPEND = RL_LIB = None
 RL_CAN_RESIZE = False
@@ -31,15 +31,6 @@ def setup_history():
     #TODO implement custom history object that respects limit on history size
     hs = env.get('XONSH_HISTORY_SIZE', 8128)
     return history
-
-
-def setup_lexer():
-    try:
-        import pygments
-    except ImportError:
-        return None
-    from pygments.lexers import PythonLexer
-    return PythonLexer
 
 
 def setup_readline():
@@ -128,7 +119,7 @@ class Shell(object):
         self.need_more_lines = False
         self.mlprompt = None
         self.history = setup_history()
-        self.lexer = setup_lexer()
+        self.lexer = XonshLexer
 
     def emptyline(self):
         """Called when an empty line has been entered."""
