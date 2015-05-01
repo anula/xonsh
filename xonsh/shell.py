@@ -7,6 +7,9 @@ from cmd import Cmd
 from warnings import warn
 from argparse import Namespace
 
+from prompt_toolkit.history import FileHistory
+from prompt_toolkit.contrib.shortcuts import get_input
+
 from xonsh.execer import Execer
 from xonsh.tools import XonshError
 from xonsh.completer import Completer
@@ -14,6 +17,29 @@ from xonsh.environ import xonshrc_context, multiline_prompt, format_prompt
 
 RL_COMPLETION_SUPPRESS_APPEND = RL_LIB = None
 RL_CAN_RESIZE = False
+
+
+def setup_history():
+    # TODO fix for situation where history file doesn't exist
+    env = builtins.__xonsh_env__
+    hf = env.get('XONSH_HISTORY_FILE', os.path.expanduser('~/.xonsh_history'))
+    if os.path.isfile(hf):
+        try:
+            history = FileHistory(hf)
+        except PermissionError:
+            warn('do not have read permissions for ' + hf, RuntimeWarning)
+    #TODO implement custom history object that respects limit on history size
+    hs = env.get('XONSH_HISTORY_SIZE', 8128)
+    return history
+
+
+def setup_lexer():
+    try:
+        import pygments
+    except ImportError:
+        return None
+    from pygments.lexers import PythonLexer
+    return PythonLexer
 
 
 def setup_readline():
@@ -85,13 +111,10 @@ def rl_completion_suppress_append(val=1):
     RL_COMPLETION_SUPPRESS_APPEND.value = val
 
 
-class Shell(Cmd):
+class Shell(object):
     """The xonsh shell."""
 
     def __init__(self, completekey='tab', stdin=None, stdout=None, ctx=None):
-        super(Shell, self).__init__(completekey=completekey,
-                                    stdin=stdin,
-                                    stdout=stdout)
         self.execer = Execer()
         env = builtins.__xonsh_env__
         if ctx is not None:
@@ -104,10 +127,8 @@ class Shell(Cmd):
         self.buffer = []
         self.need_more_lines = False
         self.mlprompt = None
-        setup_readline()
-
-    def __del__(self):
-        teardown_readline()
+        self.history = setup_history()
+        self.lexer = setup_lexer()
 
     def emptyline(self):
         """Called when an empty line has been entered."""
@@ -178,11 +199,25 @@ class Shell(Cmd):
     def cmdloop(self, intro=None):
         while not builtins.__xonsh_exit__:
             try:
-                super(Shell, self).cmdloop(intro=intro)
+                if intro:
+                    print(intro)
+                while True:
+                    # Desired use, problem with prompt using color escape sequences
+                    # line = get_input(self.prompt, lexer=self.lexer, history=self.history)
+                    # Workaround for the problem with prompt
+                    print(self.prompt, end='')
+                    line = get_input(lexer=self.lexer, history=self.history)
+                    if not line:
+                        self.emptyline()
+                    else:
+                        line = self.precmd(line)
+                        self.default(line)
             except KeyboardInterrupt:
                 print()  # Gives a newline
                 self.reset_buffer()
                 intro = None
+            except EOFError:
+                break
 
     def settitle(self):
         env = builtins.__xonsh_env__
