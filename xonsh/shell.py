@@ -6,7 +6,6 @@ import traceback
 from warnings import warn
 from argparse import Namespace
 
-from prompt_toolkit.history import FileHistory
 from prompt_toolkit.contrib.shortcuts import get_input
 
 from xonsh.execer import Execer
@@ -14,23 +13,11 @@ from xonsh.tools import XonshError
 from xonsh.completer import Completer
 from xonsh.environ import xonshrc_context, multiline_prompt, format_prompt
 from xonsh.pyghooks import XonshLexer
+from xonsh.history import LimitedFileHistory
 
 RL_COMPLETION_SUPPRESS_APPEND = RL_LIB = None
 RL_CAN_RESIZE = False
 
-
-def setup_history():
-    # TODO fix for situation where history file doesn't exist
-    env = builtins.__xonsh_env__
-    hf = env.get('XONSH_HISTORY_FILE', os.path.expanduser('~/.xonsh_history'))
-    if os.path.isfile(hf):
-        try:
-            history = FileHistory(hf)
-        except PermissionError:
-            warn('do not have read permissions for ' + hf, RuntimeWarning)
-    #TODO implement custom history object that respects limit on history size
-    hs = env.get('XONSH_HISTORY_SIZE', 8128)
-    return history
 
 
 def setup_readline():
@@ -118,8 +105,34 @@ class Shell(object):
         self.buffer = []
         self.need_more_lines = False
         self.mlprompt = None
-        self.history = setup_history()
         self.lexer = XonshLexer
+        self._setup_history()
+
+    def __del__(self):
+        if self.history is not None:
+            self._teardown_history()
+
+    def _setup_history(self):
+        env = builtins.__xonsh_env__
+        hf = env.get('XONSH_HISTORY_FILE',
+                     os.path.expanduser('~/.xonsh_history'))
+        hs = env.get('XONSH_HISTORY_SIZE', 8128)
+        self.history = LimitedFileHistory()
+        try:
+            self.history.read_history_file(hf)
+        except PermissionError:
+            warn('do not have read permissions for ' + hf, RuntimeWarning)
+
+    def _teardown_history(self):
+        """Tears down the history object."""
+        env = builtins.__xonsh_env__
+        hs = env.get('XONSH_HISTORY_SIZE', 8128)
+        hf = env.get('XONSH_HISTORY_FILE',
+                     os.path.expanduser('~/.xonsh_history'))
+        try:
+            self.history.save_history_to_file(hf, hs)
+        except PermissionError:
+            warn('do not have write permissions for ' + hf, RuntimeWarning)
 
     def emptyline(self):
         """Called when an empty line has been entered."""
