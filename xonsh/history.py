@@ -20,8 +20,11 @@ class LimitedFileHistory(History):
 
         Entry sould be a one-liner.
         """
-        super().append(entry)
-        self.new_entries.append(entry)
+        if ((len(self.new_entries) == 0 and len(self.old_history) == 0)
+                or (len(self.new_entries) == 0 and self.old_history[-1] != entry)
+                or entry != self.new_entries[-1]):
+            super().append(entry)
+            self.new_entries.append(entry)
 
     def read_history_file(self, filename):
         """Reads history from given file into memory.
