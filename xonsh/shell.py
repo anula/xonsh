@@ -10,7 +10,7 @@ from prompt_toolkit.shortcuts import get_input
 
 from xonsh.execer import Execer
 from xonsh.tools import XonshError
-from xonsh.completer import Completer
+from xonsh.completer import XonshCompleter, PromptToolkitCompleter
 from xonsh.environ import xonshrc_context, multiline_prompt, format_prompt
 from xonsh.pyghooks import XonshLexer
 from xonsh.history import LimitedFileHistory
@@ -102,7 +102,7 @@ class Shell(object):
             self.ctx = xonshrc_context(rcfile=rc, execer=self.execer)
         builtins.__xonsh_ctx__ = self.ctx
         self.ctx['__name__'] = '__main__'
-        self.completer = Completer()
+        self.completer = PromptToolkitCompleter(XonshCompleter(), ctx)
         self.buffer = []
         self.need_more_lines = False
         self.mlprompt = None
@@ -211,7 +211,9 @@ class Shell(object):
                     # line = get_input(self.prompt, lexer=self.lexer, history=self.history)
                     # Workaround for the problem with prompt
                     print(self.prompt, end='')
-                    line = get_input(lexer=self.lexer, history=self.history)
+                    #import pygments
+                    #print(pygments.format(self.prompt, pygments.formatters.RrfFormatter))
+                    line = get_input(completer=self.completer, lexer=self.lexer, history=self.history)
                     if not line:
                         self.emptyline()
                     else:

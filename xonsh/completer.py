@@ -34,7 +34,7 @@ for ((i=0;i<${{#COMPREPLY[*]}};i++)) do echo ${{COMPREPLY[i]}}; done
 """
 
 
-class Completer(object):
+class XonshCompleter(object):
     """This provides a list of optional completions for the xonsh shell."""
 
     def __init__(self):
@@ -298,3 +298,20 @@ class Completer(object):
         allcmds |= set(builtins.aliases.keys())
         self._cmds_cache = frozenset(allcmds)
         return self._cmds_cache
+
+from prompt_toolkit.completion import Completer, Completion
+
+class PromptToolkitCompleter(Completer):
+    def __init__(self, completer, ctx):
+        self.completer = completer
+        self.ctx = ctx
+
+    def get_completions(self, document, complete_event):
+        prefix = document.get_word_before_cursor()
+        line = document.current_line
+        endidx = document.cursor_position_col
+        begidx = endidx - len(prefix)
+        completions = self.completer.complete(prefix, line, begidx, endidx, self.ctx)
+        for c in completions:
+            yield Completion(c, -len(prefix))
+
