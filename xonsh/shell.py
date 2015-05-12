@@ -6,7 +6,7 @@ import traceback
 from warnings import warn
 from argparse import Namespace
 
-from prompt_toolkit.contrib.shortcuts import get_input
+from prompt_toolkit.shortcuts import get_input
 
 from xonsh.execer import Execer
 from xonsh.tools import XonshError
